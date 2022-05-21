@@ -1,0 +1,6 @@
+1 script to rename all files with mouse ID
+2 read hdf5 files and compile into df -> save as CSV file
+3 function to read csv file and align events (working on in pav_behavior_Grp_automate)
+compile all lick events into df
+compile all encoder events into df
+plot
