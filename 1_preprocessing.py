@@ -5,8 +5,7 @@ import os
 import glob
 import functions
 
-test = test_function("hello")
-print(test)
+update git test
 #%%
 
 
