@@ -1,13 +1,11 @@
-import numpy as np
 import pandas as pd
-import h5py
 import os
 import glob
 import re
 import pavlovian_functions as pv
 
 path_to_files = r"C:\Users\mds8301\Desktop\test_2_color\Day_2"  # path where guppy output files for day are
-day = re.search(r"Day_[0-9][0-9]?", path_to_files)[0]
+day = re.search(r"Day_\d\d?", path_to_files)[0]
 
 # new directory for where time stamps will be saved
 extracted_ts_path = (path_to_files + f"\\{day}_extracted_timestamps")
@@ -36,12 +34,23 @@ for mouse in mouse_dirs:
     # create a dictionary where each event name is paired with the timestamp array
     event_dict = {}
     for event in events:
-        key = os.path.basename(event).split("_")[0]
-        value = pv.read_timestamps(event)
-        event_dict[key] = value
-        df = pd.DataFrame(dict([(k, pd.Series(v)) for k, v in event_dict.items()]))
+        event_id = os.path.basename(event).split("_")[0]
+        event_ts_arr = pv.read_timestamps(event)
+        event_dict[event_id] = event_ts_arr
+        if len(event_dict.keys()) != len(event_ts):
+            pass
+        else:
+        # covert dict to df, pull mouse ID from path name and save as csv in extracted timestamps folder
+            df_raw_ts = pd.DataFrame(dict([(k, pd.Series(v)) for k, v in event_dict.items()]))
+            df_align_licks_to_cue = pv.align_events(df_raw_ts, "cue", "lick")
+            df_align_encoder_to_cue = pv.align_events(df_raw_ts, "cue", "encoder")
 
-        mouse_id = os.path.basename(mouse_id).split("-")[0]
-        df.to_csv(f"{timestamps_path}\\{mouse_id}_{day}_timestamps.csv", index=False)
+            mouse_id = os.path.basename(mouse).split("-")[0]
+            df_raw_ts.to_csv(f"{extracted_ts_path}\\{mouse_id}_{day}_timestamps.csv", index=False)
+            df_align_licks_to_cue.to_csv(f"{aligned_ts_path}\\{mouse_id}_{day}_cue_aligned_lick_timestamps.csv", index=False)
+            df_align_encoder_to_cue.to_csv(f"{aligned_ts_path}\\{mouse_id}_{day}_cue_aligned_encoder_timestamps.csv", index=False)
 
-# print("all timestamp csv files saved")
+
+print("timestamps extracted analyzed and saved")
+
+# %%
