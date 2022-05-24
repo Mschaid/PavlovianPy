@@ -34,5 +34,12 @@ def align_events(df, event, event_align):
         new_df = pd.DataFrame(dict([(k, pd.Series(v)) for k, v in align_events_dict.items()]))
     return new_df
 
-
+def calc_frequency(filepath,low_time=-10,high_time=20, bins=155, convertion_factor=5):
+    # time is in seconds
+    df = pd.read_csv(filepath)  # read csv
+    arr = df[(df > -low_time) & (df < high_time)].to_numpy()  #
+    arr = arr[np.logical_not(np.isnan(arr))]
+    freq = np.histogram(arr, bins=bins)[0] / len(df.columns)
+    freq_convert= freq* convertion_factor
+    return freq_convert
 

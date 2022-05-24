@@ -2,6 +2,8 @@ import pandas as pd
 import os
 import glob
 import re
+import matplotlib.pyplot as plt
+import numpy as np
 import pavlovian_functions as pv
 
 path_to_files = r"C:\Users\mds8301\Desktop\test_2_color\Day_2"  # path where guppy output files for day are
@@ -40,17 +42,58 @@ for mouse in mouse_dirs:
         if len(event_dict.keys()) != len(event_ts):
             pass
         else:
-        # covert dict to df, pull mouse ID from path name and save as csv in extracted timestamps folder
+            # covert dict to df, pull mouse ID from path name and save as csv in extracted timestamps folder
             df_raw_ts = pd.DataFrame(dict([(k, pd.Series(v)) for k, v in event_dict.items()]))
             df_align_licks_to_cue = pv.align_events(df_raw_ts, "cue", "lick")
             df_align_encoder_to_cue = pv.align_events(df_raw_ts, "cue", "encoder")
 
             mouse_id = os.path.basename(mouse).split("-")[0]
             df_raw_ts.to_csv(f"{extracted_ts_path}\\{mouse_id}_{day}_timestamps.csv", index=False)
-            df_align_licks_to_cue.to_csv(f"{aligned_ts_path}\\{mouse_id}_{day}_cue_aligned_lick_timestamps.csv", index=False)
-            df_align_encoder_to_cue.to_csv(f"{aligned_ts_path}\\{mouse_id}_{day}_cue_aligned_encoder_timestamps.csv", index=False)
-
+            df_align_licks_to_cue.to_csv(f"{aligned_ts_path}\\{mouse_id}_{day}_cue_aligned_lick_timestamps.csv",
+                                         index=False)
+            df_align_encoder_to_cue.to_csv(f"{aligned_ts_path}\\{mouse_id}_{day}_cue_aligned_encoder_timestamps.csv",
+                                           index=False)
 
 print("timestamps extracted analyzed and saved")
 
-# %%
+# group timestamps files by event
+aligned_ts_files = pv.list_subdirs(aligned_ts_path)
+lick_files = []
+encoder_files = []
+for f in aligned_ts_files:
+    if re.search('lick', f):
+        lick_files.append(f)
+    elif re.search('encoder', f):
+        encoder_files.append(f)
+    else:
+        pass
+
+#function to calculate mean frequency of event and covnert to dataframe
+def group_freq_df(event_name: str, filepath_list):
+    freq_dict = {}
+    for f in filepath_list:
+        mouse_id = os.path.basename(f).split("_")[0]
+        freq_arr = pv.calc_frequency(f)
+        freq_dict[mouse_id] = freq_arr
+        group_df = pd.DataFrame.from_dict(freq_dict).rolling(window=5, center=True).mean()
+
+        group_df = (group_df.assign(
+            mean=group_df.mean(axis=1),  # add mean,
+            std=group_df.std(axis=1),  #  add standard deviation,
+            sem=group_df.sem(axis=1),# add sem
+            time_sec=np.arange(-10, 21, 0.2)) # add time column
+        )
+        return event_name, group_df
+
+
+licks_analyzed = group_freq_df('licks',lick_files)
+encoder_analyzed  = group_freq_df('enconder', encoder_files)
+all_analysis=[licks_analyzed, encoder_analyzed]
+
+for i in all_analysis:
+    i[1].to_csv(f"{analyzed_behavior_path}\\{day}_group_{i[0]}_analysis.csv",
+                                         index=False)
+print('behavior analyzed')
+#%%
+
+
