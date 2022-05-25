@@ -2,20 +2,23 @@ import pandas as pd
 import os
 import glob
 import re
-import matplotlib.pyplot as plt
 import numpy as np
 import pavlovian_functions as pv
 
-path_to_files = r"C:\Users\mds8301\Desktop\test_2_color\Day_2"  # path where guppy output files for day are
+# path where guppy output files for day  are
+path_to_files = r"R:\Mike\LHA_dopamine\LH_NAC_Headfix_FP\Photometry\Pav Training\2_color_pav\Sucrose_to_sucralose\Training\Day_4"
+
 day = re.search(r"Day_\d\d?", path_to_files)[0]
 
 # new directory for where time stamps will be saved
 extracted_ts_path = (path_to_files + f"\\{day}_extracted_timestamps")
 aligned_ts_path = (path_to_files + f"\\{day}_aligned_events")
 analyzed_behavior_path = (path_to_files + f"\\{day}_analyzed_behavior")
+tidy_analysis = (path_to_files + f"\\{day}_tidy_analysis")
 
-new_folders = [extracted_ts_path, aligned_ts_path, analyzed_behavior_path]
-
+# list of new dirs to create
+new_folders = [extracted_ts_path, aligned_ts_path, analyzed_behavior_path, tidy_analysis]
+#create new dirs (new_folders)  in path to files
 for f in new_folders:
     if not os.path.exists(f):
         os.mkdir(f)
@@ -39,7 +42,7 @@ for mouse in mouse_dirs:
         event_id = os.path.basename(event).split("_")[0]
         event_ts_arr = pv.read_timestamps(event)
         event_dict[event_id] = event_ts_arr
-        if len(event_dict.keys()) != len(event_ts):
+        if len(event_dict.keys()) != len(events):
             pass
         else:
             # covert dict to df, pull mouse ID from path name and save as csv in extracted timestamps folder
@@ -68,32 +71,88 @@ for f in aligned_ts_files:
     else:
         pass
 
-#function to calculate mean frequency of event and covnert to dataframe
-def group_freq_df(event_name: str, filepath_list):
+
+# function to calculate mean frequency of event and convert to dataframe
+def group_freq_df(recording: str, filepath_list):
     freq_dict = {}
     for f in filepath_list:
         mouse_id = os.path.basename(f).split("_")[0]
         freq_arr = pv.calc_frequency(f)
         freq_dict[mouse_id] = freq_arr
-        group_df = pd.DataFrame.from_dict(freq_dict).rolling(window=5, center=True).mean()
+        if len(freq_dict.keys()) != len(filepath_list):
+            pass
+        else:
+            df = pd.DataFrame.from_dict(freq_dict)
+#create dataframe from filepath and pair with event name
+            group_df = (
+                df
+                    .assign(
+                    mean=df.mean(axis=1),  # add mean,
+                    time_sec=np.arange(-10, 21, 0.2),  # add time column
+                    recording=recording,
+                    day=(day.split('_')[1]))
+                    .melt(id_vars=['day', 'time_sec','recording'], var_name='mouse', value_name='avg_frequency')
+            )
+            return recording, group_df
 
-        group_df = (group_df.assign(
-            mean=group_df.mean(axis=1),  # add mean,
-            std=group_df.std(axis=1),  #  add standard deviation,
-            sem=group_df.sem(axis=1),# add sem
-            time_sec=np.arange(-10, 21, 0.2)) # add time column
-        )
-        return event_name, group_df
 
+# create event name pair with dataframe
+licks_analyzed = group_freq_df('licks', lick_files)
+encoder_analyzed = group_freq_df('enconder', encoder_files)
 
-licks_analyzed = group_freq_df('licks',lick_files)
-encoder_analyzed  = group_freq_df('enconder', encoder_files)
-all_analysis=[licks_analyzed, encoder_analyzed]
-
+# combine in list to loop and save seperately as csvs
+all_analysis = [licks_analyzed, encoder_analyzed]
 for i in all_analysis:
     i[1].to_csv(f"{analyzed_behavior_path}\\{day}_group_{i[0]}_analysis.csv",
-                                         index=False)
+                index=False)
+
+# create list of dataframes, concatenate into master file and save
+all_analysis_df_ony=[licks_analyzed[1], encoder_analyzed[1]]
+group_behavior_tidy = pd.concat(all_analysis_df_ony)
+# save dataframe as h5 and use event name in filename
+group_behavior_tidy.to_hdf(f'{tidy_analysis}\\{day}_tidy_behavior.h5', key='behavior')
+
 print('behavior analyzed')
-#%%
+
+
+"""
+this section cleans photometry data and formats it into tidy data, saves as csv
+
+"""
+group_path = f'{path_to_files}\\average'  # get path to guppy group analysis 'average'
+all_output_files = pv.list_subdirs(group_path)  # get list of all files in 'average'
+
+fp_regex = '(cue|reward)_(GCAMP|RDA)[A-Z]{3}_z_score_(GCAMP|RDA)[A-Z]{3}.h5'  # regex pattern to parse files
+
+all_fp_filepaths = [f for f in all_output_files if
+                    re.match(fp_regex, os.path.basename(f))]  # create list of all relavent fp files.
+
+
+#  function to clean data and format for tidy format
+def clean_fp_data(path):
+    day_numb = (re.search(('Day_\d'), path)[0]).split('_')[-1]
+    sensor = re.search('GCAMP|RDA', path)[0]
+    region = re.search('NAC|LHA', path)[0]
+    event = re.search('cue|reward', path)[0]
+
+    df = pd.read_hdf(path)
+    df_clean = (
+        df
+            .assign(day=day_numb)
+            .rename(columns=lambda c: c.split('-')[0])
+            .drop(columns=['err'])
+            .melt(id_vars=['day', 'timestamps'], var_name='mouse', value_name='z-score')
+            .assign(sensor=sensor,
+                    region=region,
+                    event=event,
+                    recording='photometry')
+    )
+    return df_clean
+
+# applys clean function to all fp data, then concatenates and saves as h5 file
+df_to_concat= [clean_fp_data(f) for f in all_fp_filepaths]
+group_df = pd.concat(df_to_concat)
+group_df.to_hdf(f'{tidy_analysis}\\{day}_tidy_photometry.h5', key='photometry')
+print('fp data cleaned grouped and saved')
 
 
