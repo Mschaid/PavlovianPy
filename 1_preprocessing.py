@@ -228,31 +228,27 @@ def drop_nac_mice(df):
     return NAC_filter
 
 
-agg_dict = {'z-score':['mean', 'std', 'sem']}
-nac_fp= (
+agg_dict = {'z-score': ['mean', 'std', 'sem']}
+nac_fp = (
     group_fp_df
     .pipe(drop_nac_mice)
     .reset_index()
     .drop(['index'], axis=1)
     .groupby(by=['time_stamps', 'sensor', 'region', 'event'])
     .agg(agg_dict)
-    .pipe(flatten_df)
+    .pipe(pv.flatten_df)
 )
-
-#%%
 
 
 def fp_plot_line(df, sensor, region, event, ax=None):
-    sns.lineplot(data=
-    df[(df.sensor==sensor)
-    & (df.region== region)
-    &(df.event==event)
-    ],
-    x='time_stamps', 
-    y='z-score_mean',
-    ax=ax
-    )
+    sns.lineplot(data=df[(df.sensor == sensor)
+                         & (df.region == region)
+                         & (df.event == event)
+                         ],
+                 x='time_stamps',
+                 y='z-score_mean',
+                 ax=ax
+                 )
 
-#%%
-fp_plot_line(df=nac_fp, sensor='RDA', region='NAC', event='cue')
-    
+
+fp_plot_line(df=nac_fp, sensor='GCAMP', region='NAC', event='cue')

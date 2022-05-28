@@ -1,2 +1,3 @@
 # PavlovianPy
-a pipeline for analyzing pavlovian behavior 
+
+a pipeline for analyzing pavlovian behavior
