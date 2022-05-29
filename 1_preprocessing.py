@@ -6,11 +6,13 @@ import glob
 import re
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from matplotlib.gridspec import GridSpec  # for subplots
 import seaborn as sns
 import pavlovian_functions as pv
 
 # path where guppy output files for day  are
-path_to_files = r"R:\Mike\LHA_dopamine\LH_NAC_Headfix_FP\Photometry\Pav Training\2_color_pav\Sucrose_to_sucralose\Training\Day_2"
+path_to_files = r"R:\Mike\LHA_dopamine\LH_NAC_Headfix_FP\Photometry\Pav Training\2_color_pav\Sucrose_to_sucralose\Training\Day_6"
 
 day = re.search(r"Day_\d\d?", path_to_files)[0]
 
@@ -94,7 +96,7 @@ def group_freq_df(recording: str, filepath_list):
 # create dataframe from filepath and pair with event name
             group_df = (
                 df
-                .rolling(window=250, center=True).mean()
+                .rolling(window=500, center=True).mean()
                 .assign(
                     mean=df.mean(axis=1),  # add mean,
                     time_sec=np.arange(-10, 21, 0.2),  # add time column
@@ -151,7 +153,7 @@ def clean_fp_data(path):
     df_clean = (
         df
         .drop(['timestamps'], axis=1)
-        .rolling(window=250, center=True).mean()
+        .rolling(window=500, center=True).mean()
         .assign(day=day_numb)
         .rename(columns=lambda c: c.split('-')[0])
         .drop(columns=['err'])
@@ -239,16 +241,119 @@ nac_fp = (
     .pipe(pv.flatten_df)
 )
 
+# %%
 
-def fp_plot_line(df, sensor, region, event, ax=None):
-    sns.lineplot(data=df[(df.sensor == sensor)
-                         & (df.region == region)
-                         & (df.event == event)
-                         ],
+
+def fp_plot_line(df, sensor=None, region=None, event=None, sub_axes=None, alpha=None, color=None, linewidth=None):
+
+    data = df[(df.sensor == sensor)
+              & (df.region == region)
+              & (df.event == event)
+              ]
+
+    sns.lineplot(data=data,
                  x='time_stamps',
                  y='z-score_mean',
-                 ax=ax
+                 color=color,
+                 linewidth=linewidth,
+                 ax=sub_axes
                  )
+    sub_axes.fill_between(data=data, x=data['time_stamps'], y1=(data['z-score_mean'] + data['z-score_sem']),
+                          y2=(data['z-score_mean'] - data['z-score_sem']), color=color, alpha=alpha, linewidth=0)
 
 
-fp_plot_line(df=nac_fp, sensor='GCAMP', region='NAC', event='cue')
+def draw_cue_box(ax):
+    #  draw box on plot for cue
+    rect = patches.Rectangle(
+        (0, -2), width=5, height=10, alpha=0.25, facecolor="lightgrey")
+    ax.add_patch(rect)
+
+
+# %%
+
+
+# def format_axes(fig):
+#     for i, ax in enumerate(fig.axes):
+#         ax.text(0.5, 0.5, "ax%d" % (i+1), va="center", ha="center")
+#         ax.tick_params(labelbottom=False, labelleft=False)
+
+fig = plt.figure(constrained_layout=True)
+
+gs = GridSpec(3, 4, figure=fig)
+
+fig.text(0.25, 1.05,
+         'NAC|Cue',
+         #  style = 'italic',
+         fontsize=10,
+         color="black")
+
+ax1 = fig.add_subplot(gs[0, 0])
+
+fp_plot_line(df=nac_fp, sensor='GCAMP', region='NAC', event='cue',
+             alpha=0.25, color='lime', linewidth=0.5, sub_axes=ax1)
+sns.despine(top=True, right=True, ax=ax1)
+ax1.set_xlim(left=-5, right=15)  # x axis range
+# axs.set_ylim(bottom=-0.5, top=2.5)  # y axis range
+ax1.tick_params(axis="both", which="major", labelsize=8)  # set tick label size
+ax1.set_xlabel("Time(sec)", fontsize=8)  # x axis label
+ax1.set_ylabel("z-score", fontsize=8)  # y axis label
+ax1.set_box_aspect(1)
+
+
+ax2 = fig.add_subplot(gs[0, 1])
+
+fp_plot_line(df=nac_fp, sensor='RDA', region='NAC', event='cue',
+             alpha=0.25, color='red', linewidth=0.5, sub_axes=ax2)
+sns.despine(top=True, right=True, ax=ax2)
+ax2.set_xlim(left=-5, right=15)  # x axis range
+# axs.set_ylim(bottom=-0.5, top=2.5)  # y axis range
+ax2.tick_params(axis="both", which="major", labelsize=8)  # set tick label size
+ax2.set_xlabel("Time(sec)", fontsize=8)  # x axis label
+ax2.set_ylabel("z-score", fontsize=8)  # y axis label
+ax2.set_box_aspect(1)
+
+
+fig.text(0.25, 0.68,
+         'LHA|Cue',
+         #  style = 'italic',
+         fontsize=10,
+         color="black")
+
+ax3 = fig.add_subplot(gs[1, 0])
+
+fp_plot_line(df=nac_fp, sensor='GCAMP', region='LHA', event='cue',
+             alpha=0.25, color='lime', linewidth=0.5, sub_axes=ax3)
+sns.despine(top=True, right=True, ax=ax3)
+ax3.set_xlim(left=-5, right=15)  # x axis range
+# axs.set_ylim(bottom=-0.5, top=2.5)  # y axis range
+ax3.tick_params(axis="both", which="major", labelsize=8)  # set tick label size
+ax3.set_xlabel("Time(sec)", fontsize=8)  # x axis label
+ax3.set_ylabel("z-score", fontsize=8)  # y axis label
+ax3.set_box_aspect(1)
+
+
+ax4 = fig.add_subplot(gs[1, 1])
+
+fp_plot_line(df=nac_fp, sensor='RDA', region='LHA', event='cue',
+             alpha=0.25, color='red', linewidth=0.5, sub_axes=ax4)
+sns.despine(top=True, right=True, ax=ax4)
+ax4.set_xlim(left=-5, right=15)  # x axis range
+# axs.set_ylim(bottom=-0.5, top=2.5)  # y axis range
+ax4.tick_params(axis="both", which="major", labelsize=8)  # set tick label size
+ax4.set_xlabel("Time(sec)", fontsize=8)  # x axis label
+ax4.set_ylabel("z-score", fontsize=8)  # y axis label
+ax4.set_box_aspect(1)
+
+
+# ax3 = fig.add_subplot(gs[1:, -1])
+# ax4 = fig.add_subplot(gs[-1, 0])
+# ax5 = fig.add_subplot(gs[-1, -2])
+
+# fig.suptitle("GridSpec")
+# format_axes(fig)
+
+plt.show()
+
+
+# %%
+##git test save 
