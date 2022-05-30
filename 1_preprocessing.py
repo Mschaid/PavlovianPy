@@ -12,7 +12,7 @@ import seaborn as sns
 import pavlovian_functions as pv
 
 # path where guppy output files for day  are
-path_to_files = r"R:\Mike\LHA_dopamine\LH_NAC_Headfix_FP\Photometry\Pav Training\2_color_pav\Sucrose_to_sucralose\Training\Day_6"
+path_to_files = r"R:\Mike\LHA_dopamine\LH_NAC_Headfix_FP\Photometry\Pav Training\2_color_pav\Sucrose_to_sucralose\Training\Day_5"
 
 day = re.search(r"Day_\d\d?", path_to_files)[0]
 
@@ -81,9 +81,10 @@ for f in aligned_ts_files:
     else:
         pass
 
-
 # function to calculate mean frequency of event and convert to dataframe
-def group_freq_df(recording: str, filepath_list):
+
+
+def group_freq_df(recording: str, filepath_list):  # recording: str,
     freq_dict = {}
     for f in filepath_list:
         mouse_id = os.path.basename(f).split("_")[0]
@@ -94,18 +95,19 @@ def group_freq_df(recording: str, filepath_list):
         else:
             df = pd.DataFrame.from_dict(freq_dict)
 # create dataframe from filepath and pair with event name
-            group_df = (
+            group_behavior_df = (
                 df
-                .rolling(window=500, center=True).mean()
+                .rolling(window=2, center=True).mean()
                 .assign(
-                    mean=df.mean(axis=1),  # add mean,
+                    # mean=df.mean(axis=1),  # add mean,
                     time_sec=np.arange(-10, 21, 0.2),  # add time column
                     recording=recording,
                     day=(day.split('_')[1]))
                 .dropna()
                 .melt(id_vars=['day', 'time_sec', 'recording'], var_name='mouse', value_name='avg_frequency')
             )
-            return recording, group_df
+            # print(group_behavior_df)
+    return recording, group_behavior_df
 
 
 # create event name pair with dataframe
@@ -121,6 +123,7 @@ for i in all_analysis:
 # create list of dataframes, concatenate into master file and save
 all_analysis_df_ony = [licks_analyzed[1], encoder_analyzed[1]]
 group_behavior_tidy = pd.concat(all_analysis_df_ony)
+
 # save dataframe as h5 and use event name in filename
 group_behavior_path = f'{tidy_analysis}\\{day}_tidy_behavior.h5'
 group_behavior_tidy.to_hdf(group_behavior_path, key='behavior')
@@ -197,9 +200,9 @@ df_to_concat = [clean_fp_data(f) for f in all_fp_filepaths]
 df_to_concat[0]
 
 
-group_fp_df = pd.concat(df_to_concat)
+group_fp = pd.concat(df_to_concat)
 group_fp_path = f'{tidy_analysis}\\{day}_tidy_photometry.h5'
-group_fp_df.to_hdf(group_fp_path, key='photometry')
+group_fp.to_hdf(group_fp_path, key='photometry')
 print('fp data cleaned grouped and saved')
 
 
@@ -217,29 +220,60 @@ group_AUC_df.to_hdf(group_AUC_path, key='peak_AUC')
 print('AUC data cleaned grouped and saved')
 
 
-# filter to drop NAC mice prior to plotting
+def agg_and_clean_fp(df):  # function to group and aggreate fp data
+
+    group_by = ['time_stamps', 'sensor', 'region', 'event']
+    agg_dict = {'z-score': ['mean', 'std', 'sem']}
+
+    df = (
+        df
+        .reset_index()
+        .drop(['index'], axis=1)
+        .groupby(by=group_by)
+        .agg(agg_dict)
+        .pipe(pv.flatten_df)
+    )
+    return df
 
 
-def drop_nac_mice(df):
+def drop_mice(df):  # filteres dataframe prior to group and aggreation
 
-    NAC_filter = df[(df.mouse != '512581') &
-                    (df.mouse != '514957') &
-                    (df.mouse != '514958') &
-                    (df.mouse != 'mean')
-                    ]
-    return NAC_filter
+    filtered_df = df[(df.mouse != '512581') &
+                     (df.mouse != '514957') &
+                     (df.mouse != '514958') &
+                     (df.mouse != 'mean')
+                     ]
+    return filtered_df
 
 
-agg_dict = {'z-score': ['mean', 'std', 'sem']}
-nac_fp = (
-    group_fp_df
-    .pipe(drop_nac_mice)
+"""
+Final photometry dataframe for plotting 
+"""
+all_fp_df = (group_fp.pipe(agg_and_clean_fp))  # all mice
+
+nac_fp_df = (group_fp  # dropped missing nac probe mice
+             .pipe(drop_mice)
+             .pipe(agg_and_clean_fp)
+             )
+
+
+"""
+group and aggregate behavior 
+"""
+# %%
+behavior_group_by = ['time_sec', 'recording']
+behavior_agg_dict = {'avg_frequency': ['mean', 'std', 'sem']}
+
+#
+group_behavior_tidy = (
+    group_behavior_tidy
     .reset_index()
     .drop(['index'], axis=1)
-    .groupby(by=['time_stamps', 'sensor', 'region', 'event'])
-    .agg(agg_dict)
+    .groupby(by=behavior_group_by)
+    .agg(behavior_agg_dict)
     .pipe(pv.flatten_df)
 )
+group_behavior_tidy
 
 # %%
 
@@ -262,6 +296,21 @@ def fp_plot_line(df, sensor=None, region=None, event=None, sub_axes=None, alpha=
                           y2=(data['z-score_mean'] - data['z-score_sem']), color=color, alpha=alpha, linewidth=0)
 
 
+def behavior_plot_line(df, recording=None, sub_axes=None, alpha=None, color=None, linewidth=None):
+
+    data = df[(df.recording == recording)]
+
+    sns.lineplot(data=data,
+                 x='time_sec',
+                 y='avg_frequency_mean',
+                 color=color,
+                 linewidth=linewidth,
+                 ax=sub_axes
+                 )
+    sub_axes.fill_between(data=data, x=data['time_sec'], y1=(data['avg_frequency_mean'] + data['avg_frequency_sem']),
+                          y2=(data['avg_frequency_mean'] - data['avg_frequency_sem']), color=color, alpha=alpha, linewidth=0)
+
+
 def draw_cue_box(ax):
     #  draw box on plot for cue
     rect = patches.Rectangle(
@@ -269,13 +318,9 @@ def draw_cue_box(ax):
     ax.add_patch(rect)
 
 
+#
+
 # %%
-
-
-# def format_axes(fig):
-#     for i, ax in enumerate(fig.axes):
-#         ax.text(0.5, 0.5, "ax%d" % (i+1), va="center", ha="center")
-#         ax.tick_params(labelbottom=False, labelleft=False)
 
 fig = plt.figure(constrained_layout=True)
 
@@ -289,7 +334,7 @@ fig.text(0.25, 1.05,
 
 ax1 = fig.add_subplot(gs[0, 0])
 
-fp_plot_line(df=nac_fp, sensor='GCAMP', region='NAC', event='cue',
+fp_plot_line(df=nac_fp_df, sensor='GCAMP', region='NAC', event='cue',
              alpha=0.25, color='lime', linewidth=0.5, sub_axes=ax1)
 sns.despine(top=True, right=True, ax=ax1)
 ax1.set_xlim(left=-5, right=15)  # x axis range
@@ -302,7 +347,7 @@ ax1.set_box_aspect(1)
 
 ax2 = fig.add_subplot(gs[0, 1])
 
-fp_plot_line(df=nac_fp, sensor='RDA', region='NAC', event='cue',
+fp_plot_line(df=nac_fp_df, sensor='RDA', region='NAC', event='cue',
              alpha=0.25, color='red', linewidth=0.5, sub_axes=ax2)
 sns.despine(top=True, right=True, ax=ax2)
 ax2.set_xlim(left=-5, right=15)  # x axis range
@@ -321,7 +366,7 @@ fig.text(0.25, 0.68,
 
 ax3 = fig.add_subplot(gs[1, 0])
 
-fp_plot_line(df=nac_fp, sensor='GCAMP', region='LHA', event='cue',
+fp_plot_line(df=all_fp_df, sensor='GCAMP', region='LHA', event='cue',
              alpha=0.25, color='lime', linewidth=0.5, sub_axes=ax3)
 sns.despine(top=True, right=True, ax=ax3)
 ax3.set_xlim(left=-5, right=15)  # x axis range
@@ -334,7 +379,7 @@ ax3.set_box_aspect(1)
 
 ax4 = fig.add_subplot(gs[1, 1])
 
-fp_plot_line(df=nac_fp, sensor='RDA', region='LHA', event='cue',
+fp_plot_line(df=all_fp_df, sensor='RDA', region='LHA', event='cue',
              alpha=0.25, color='red', linewidth=0.5, sub_axes=ax4)
 sns.despine(top=True, right=True, ax=ax4)
 ax4.set_xlim(left=-5, right=15)  # x axis range
@@ -345,7 +390,27 @@ ax4.set_ylabel("z-score", fontsize=8)  # y axis label
 ax4.set_box_aspect(1)
 
 
-# ax3 = fig.add_subplot(gs[1:, -1])
+ax5 = fig.add_subplot(gs[2, 0])
+behavior_plot_line(group_behavior_tidy, recording='licks',
+                   sub_axes=ax5, alpha=0.5, color='black', linewidth=0.5)
+sns.despine(top=True, right=True, ax=ax5)
+ax5.set_xlim(left=-5, right=15)
+ax5.set_ylim(bottom=-0.5, top=1)
+ax5.set_xlabel("Time(sec)", fontsize=8)
+ax5.set_ylabel('Lick frequency', fontsize=8)  # x axis range
+ax5.set_box_aspect(1)
+
+ax6 = fig.add_subplot(gs[2, 1])
+behavior_plot_line(group_behavior_tidy, recording='encoder',
+                   sub_axes=ax6, alpha=0.5, color='black', linewidth=0.5)
+sns.despine(top=True, right=True, ax=ax6)
+ax6.set_xlim(left=-5, right=15)
+ax6.set_ylim(bottom=-0.5, top=1)
+ax6.set_xlabel("Time(sec)", fontsize=8)
+ax6.set_ylabel('encoder', fontsize=8)  # x axis range
+ax6.set_box_aspect(1)
+
+
 # ax4 = fig.add_subplot(gs[-1, 0])
 # ax5 = fig.add_subplot(gs[-1, -2])
 
@@ -354,6 +419,4 @@ ax4.set_box_aspect(1)
 
 plt.show()
 
-
 # %%
-##git test save 
