@@ -1,4 +1,5 @@
 # %%
+import h5py
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
@@ -10,9 +11,9 @@ import matplotlib.patches as patches
 from matplotlib.gridspec import GridSpec  # for subplots
 import seaborn as sns
 import pavlovian_functions as pv
-
+# %%
 # path where guppy output files for day  are
-path_to_files = r"R:\Mike\LHA_dopamine\LH_NAC_Headfix_FP\Photometry\Pav Training\2_color_pav\Sucrose_to_sucralose\Training\Day_5"
+path_to_files = r"R:\Mike\LHA_dopamine\LH_NAC_Headfix_FP\Photometry\Pav Training\2_color_pav\Sucrose_to_sucralose\Training\Day_8"
 
 day = re.search(r"Day_\d\d?", path_to_files)[0]
 
@@ -29,14 +30,14 @@ new_folders = [extracted_ts_path, aligned_ts_path,
 for f in new_folders:
     if not os.path.exists(f):
         os.mkdir(f)
-        print("Directories created")
+        # print("Directories created")
     else:
         print("Directory already exists")
-
+print('Directories created, extracting timestamps')
 #  search path_to_files for all directories, then find subdirs that contain 'output' - append paths to list mouse_dirs
 mouse_dirs = glob.glob(path_to_files + "\**\*output_*")
-event_ts = ["cue", "reward", "lick", "encoder"]
-suffix = "_RDALHA.hdf5"
+event_ts = ["Cuet", "Rwrp", "Lick", "endr"]
+suffix = ".hdf5"
 event_ts_suf = [i + suffix for i in event_ts]
 
 for mouse in mouse_dirs:
@@ -46,7 +47,7 @@ for mouse in mouse_dirs:
     # create a dictionary where each event name is paired with the timestamp array
     event_dict = {}
     for event in events:
-        event_id = os.path.basename(event).split("_")[0]
+        event_id = os.path.basename(event).split(".")[0]
         event_ts_arr = pv.read_timestamps(event)
         event_dict[event_id] = event_ts_arr
         if len(event_dict.keys()) != len(events):
@@ -55,11 +56,13 @@ for mouse in mouse_dirs:
             # covert dict to df, pull mouse ID from path name and save as csv in extracted timestamps folder
             df_raw_ts = pd.DataFrame(
                 dict([(k, pd.Series(v)) for k, v in event_dict.items()]))
-            df_align_licks_to_cue = pv.align_events(df_raw_ts, "cue", "lick")
+            df_align_licks_to_cue = pv.align_events(df_raw_ts, "Cuet", "Lick")
             df_align_encoder_to_cue = pv.align_events(
-                df_raw_ts, "cue", "encoder")
+                df_raw_ts, "Cuet", "endr")
 
             mouse_id = os.path.basename(mouse).split("-")[0]
+            df_raw_ts = df_raw_ts.rename(columns={
+                                         'Lick': 'lick', 'Cuet': 'cue', 'endr': 'encoder', 'Rwrp': 'reward'})
             df_raw_ts.to_csv(
                 f"{extracted_ts_path}\\{mouse_id}_{day}_timestamps.csv", index=False)
             df_align_licks_to_cue.to_csv(f"{aligned_ts_path}\\{mouse_id}_{day}_cue_aligned_lick_timestamps.csv",
@@ -111,7 +114,7 @@ def group_freq_df(recording: str, filepath_list):  # recording: str,
 
 
 # create event name pair with dataframe
-licks_analyzed = group_freq_df('licks', lick_files)
+licks_analyzed = group_freq_df('lick', lick_files)
 encoder_analyzed = group_freq_df('encoder', encoder_files)
 
 # combine in list to loop and save seperately as csvs
@@ -240,7 +243,7 @@ def drop_mice(df):  # filteres dataframe prior to group and aggreation
 
     filtered_df = df[(df.mouse != '512581') &
                      (df.mouse != '514957') &
-                     (df.mouse != '514958') &
+                     #  (df.mouse != '514958') &
                      (df.mouse != 'mean')
                      ]
     return filtered_df
@@ -260,7 +263,7 @@ nac_fp_df = (group_fp  # dropped missing nac probe mice
 """
 group and aggregate behavior 
 """
-# %%
+
 behavior_group_by = ['time_sec', 'recording']
 behavior_agg_dict = {'avg_frequency': ['mean', 'std', 'sem']}
 
@@ -274,8 +277,6 @@ group_behavior_tidy = (
     .pipe(pv.flatten_df)
 )
 group_behavior_tidy
-
-# %%
 
 
 def fp_plot_line(df, sensor=None, region=None, event=None, sub_axes=None, alpha=None, color=None, linewidth=None):
@@ -318,15 +319,15 @@ def draw_cue_box(ax):
     ax.add_patch(rect)
 
 
+print('preprocessing complete, ready to plot')
 #
-
 # %%
 
-fig = plt.figure(constrained_layout=True)
+fig = plt.figure(constrained_layout=True, figsize=(10, 10))
 
 gs = GridSpec(3, 4, figure=fig)
 
-fig.text(0.25, 1.05,
+fig.text(0.25, 0.95,
          'NAC|Cue',
          #  style = 'italic',
          fontsize=10,
@@ -358,7 +359,7 @@ ax2.set_ylabel("z-score", fontsize=8)  # y axis label
 ax2.set_box_aspect(1)
 
 
-fig.text(0.25, 0.68,
+fig.text(0.25, 0.6,
          'LHA|Cue',
          #  style = 'italic',
          fontsize=10,
@@ -391,11 +392,11 @@ ax4.set_box_aspect(1)
 
 
 ax5 = fig.add_subplot(gs[2, 0])
-behavior_plot_line(group_behavior_tidy, recording='licks',
+behavior_plot_line(group_behavior_tidy, recording='lick',
                    sub_axes=ax5, alpha=0.5, color='black', linewidth=0.5)
 sns.despine(top=True, right=True, ax=ax5)
 ax5.set_xlim(left=-5, right=15)
-ax5.set_ylim(bottom=-0.5, top=1)
+# ax5.set_ylim(bottom=-0.5, top=1)
 ax5.set_xlabel("Time(sec)", fontsize=8)
 ax5.set_ylabel('Lick frequency', fontsize=8)  # x axis range
 ax5.set_box_aspect(1)
@@ -405,7 +406,7 @@ behavior_plot_line(group_behavior_tidy, recording='encoder',
                    sub_axes=ax6, alpha=0.5, color='black', linewidth=0.5)
 sns.despine(top=True, right=True, ax=ax6)
 ax6.set_xlim(left=-5, right=15)
-ax6.set_ylim(bottom=-0.5, top=1)
+# ax6.set_ylim(bottom=-0.5, top=1)
 ax6.set_xlabel("Time(sec)", fontsize=8)
 ax6.set_ylabel('encoder', fontsize=8)  # x axis range
 ax6.set_box_aspect(1)
@@ -418,5 +419,6 @@ ax6.set_box_aspect(1)
 # format_axes(fig)
 
 plt.show()
+
 
 # %%

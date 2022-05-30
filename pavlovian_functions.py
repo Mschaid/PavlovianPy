@@ -21,7 +21,7 @@ def find_ts_file_path(file_path, file_basename):
 
 
 def read_timestamps(file_path):
-    ts_arr = h5py.File(file_path, "r").get('ts')
+    ts_arr = h5py.File(file_path, "r").get('timestamps')
     return np.array(ts_arr)
 
 
@@ -41,13 +41,13 @@ def align_events(df, event, event_align):
     return new_df
 
 
-def calc_frequency(filepath, low_time=-10, high_time=20, bins=155, convertion_factor=5):
+def calc_frequency(filepath):
     # time is in seconds
     df = pd.read_csv(filepath)  # read csv
-    arr = df[(df > -low_time) & (df < high_time)].to_numpy()  #
+    arr = df[(df > -10) & (df < 20)].to_numpy()  #
     arr = arr[np.logical_not(np.isnan(arr))]
-    freq = np.histogram(arr, bins=bins)[0] / len(df.columns)
-    freq_convert = freq * convertion_factor
+    freq = np.histogram(arr, bins=155)[0] / len(df.columns)
+    freq_convert = freq * 5
     return freq_convert
 
 
