@@ -1,9 +1,13 @@
+
 import numpy as np
 import pandas as pd
 import h5py
 import os
 import glob
 import re
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import seaborn as sns
 
 
 def create_new_dir(file_path, new_dir_ext):
@@ -131,8 +135,6 @@ def collect_AUC_data(path, sensor_regex, region_regex, event_regex):
     region = re.search(region_regex, os.path.basename(path))[0]
     event = re.search(event_regex, os.path.basename(path))[0]
 
-    df = pd.read_hdf(path)
-
     df = pd.read_csv(path)
     AUC_clean = (
         df
@@ -157,3 +159,47 @@ def drop_mice(df):  # filteres dataframe prior to group and aggreation
                      (df.mouse != 'mean')
                      ]
     return filtered_df
+
+
+"""PLOTTING FUNCTIONS"""
+
+
+def fp_plot_line(df, sensor=None, region=None, event=None, sub_axes=None, alpha=None, color=None, linewidth=None):
+
+    data = df[(df.sensor == sensor)
+              & (df.region == region)
+              & (df.event == event)
+              ]
+
+    sns.lineplot(data=data,
+                 x='time_stamps',
+                 y='z-score_mean',
+                 color=color,
+                 linewidth=linewidth,
+                 ax=sub_axes
+                 )
+    sub_axes.fill_between(data=data, x=data['time_stamps'], y1=(data['z-score_mean'] + data['z-score_sem']),
+                          y2=(data['z-score_mean'] - data['z-score_sem']), color=color, alpha=alpha, linewidth=0)
+
+
+def behavior_plot_line(df, recording=None, sub_axes=None, alpha=None, color=None, linewidth=None):
+
+    data = df[(df.recording == recording)]
+
+    sns.lineplot(data=data,
+                 x='time_sec',
+                 y='avg_frequency_mean',
+                 color=color,
+                 linewidth=linewidth,
+                 ax=sub_axes
+                 )
+    sub_axes.fill_between(data=data, x=data['time_sec'], y1=(data['avg_frequency_mean'] + data['avg_frequency_sem']),
+                          y2=(data['avg_frequency_mean'] - data['avg_frequency_sem']), color=color, alpha=alpha, linewidth=0)
+
+
+def draw_cue_box(ax):
+    #  draw box on plot for cue
+    rect = patches.Rectangle(
+        (0, -2), width=5, height=10, alpha=0.25, facecolor="lightgrey")
+    ax.add_patch(rect)
+    return rect

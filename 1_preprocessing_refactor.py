@@ -13,7 +13,7 @@ import seaborn as sns
 import pavlovian_functions as pv
 
 # path where guppy output files for day  are
-path_to_files = r"R:\Mike\LHA_dopamine\LH_NAC_Headfix_FP\Photometry\Pav Training\2_color_pav\Sucrose_to_sucralose\Training\Day_8"
+path_to_files = r"R:\Mike\LHA_dopamine\LH_NAC_Headfix_FP\Photometry\Pav Training\2_color_pav\Sucrose_to_sucralose\Training\Day_6"
 
 day = re.search(r"Day_\d\d?", path_to_files)[0]
 
@@ -138,7 +138,7 @@ all_peak_AUC_filepaths = [f for f in all_output_files if
 
 
 # applys clean function to all fp AUC data, then concatenates and saves as h5 file
-auc_df_to_concat = [pv.clean_AUC_data(
+auc_df_to_concat = [pv.collect_AUC_data(
     f, sensor_regex='GCAMP|RDA', region_regex='NAC|LHA', event_regex='cue|reward') for f in all_peak_AUC_filepaths]
 group_AUC_df = pd.concat(auc_df_to_concat)
 group_AUC_path = f'{tidy_analysis}\\{day}_tidy_AUC_photometry.h5'
@@ -161,6 +161,8 @@ def agg_and_clean_fp(df):
         .agg(agg_dict)
         .pipe(pv.flatten_df))
     return df
+
+# TODO re write to pass in list
 
 
 def drop_mice(df):  # filteres dataframe prior to group and aggreation
@@ -200,54 +202,13 @@ group_behavior_tidy = (
     .agg(behavior_agg_dict)
     .pipe(pv.flatten_df)
 )
-group_behavior_tidy
-
-
-def fp_plot_line(df, sensor=None, region=None, event=None, sub_axes=None, alpha=None, color=None, linewidth=None):
-
-    data = df[(df.sensor == sensor)
-              & (df.region == region)
-              & (df.event == event)
-              ]
-
-    sns.lineplot(data=data,
-                 x='time_stamps',
-                 y='z-score_mean',
-                 color=color,
-                 linewidth=linewidth,
-                 ax=sub_axes
-                 )
-    sub_axes.fill_between(data=data, x=data['time_stamps'], y1=(data['z-score_mean'] + data['z-score_sem']),
-                          y2=(data['z-score_mean'] - data['z-score_sem']), color=color, alpha=alpha, linewidth=0)
-
-
-def behavior_plot_line(df, recording=None, sub_axes=None, alpha=None, color=None, linewidth=None):
-
-    data = df[(df.recording == recording)]
-
-    sns.lineplot(data=data,
-                 x='time_sec',
-                 y='avg_frequency_mean',
-                 color=color,
-                 linewidth=linewidth,
-                 ax=sub_axes
-                 )
-    sub_axes.fill_between(data=data, x=data['time_sec'], y1=(data['avg_frequency_mean'] + data['avg_frequency_sem']),
-                          y2=(data['avg_frequency_mean'] - data['avg_frequency_sem']), color=color, alpha=alpha, linewidth=0)
-
-
-def draw_cue_box(ax):
-    #  draw box on plot for cue
-    rect = patches.Rectangle(
-        (0, -2), width=5, height=10, alpha=0.25, facecolor="lightgrey")
-    ax.add_patch(rect)
-
 
 print('preprocessing complete, ready to plot')
 #
-# %%
-
-fig = plt.figure(constrained_layout=True, figsize=(10, 10))
+""" 
+PLOT
+"""
+fig = plt.figure(figsize=(10, 10))
 
 gs = GridSpec(3, 4, figure=fig)
 
@@ -259,8 +220,8 @@ fig.text(0.25, 0.95,
 
 ax1 = fig.add_subplot(gs[0, 0])
 
-fp_plot_line(df=nac_fp_df, sensor='GCAMP', region='NAC', event='cue',
-             alpha=0.25, color='lime', linewidth=0.5, sub_axes=ax1)
+pv.fp_plot_line(df=nac_fp_df, sensor='GCAMP', region='NAC', event='cue',
+                alpha=0.25, color='lime', linewidth=0.5, sub_axes=ax1)
 sns.despine(top=True, right=True, ax=ax1)
 ax1.set_xlim(left=-5, right=15)  # x axis range
 # axs.set_ylim(bottom=-0.5, top=2.5)  # y axis range
@@ -272,8 +233,8 @@ ax1.set_box_aspect(1)
 
 ax2 = fig.add_subplot(gs[0, 1])
 
-fp_plot_line(df=nac_fp_df, sensor='RDA', region='NAC', event='cue',
-             alpha=0.25, color='red', linewidth=0.5, sub_axes=ax2)
+pv.fp_plot_line(df=nac_fp_df, sensor='RDA', region='NAC', event='cue',
+                alpha=0.25, color='red', linewidth=0.5, sub_axes=ax2)
 sns.despine(top=True, right=True, ax=ax2)
 ax2.set_xlim(left=-5, right=15)  # x axis range
 # axs.set_ylim(bottom=-0.5, top=2.5)  # y axis range
@@ -291,8 +252,8 @@ fig.text(0.25, 0.6,
 
 ax3 = fig.add_subplot(gs[1, 0])
 
-fp_plot_line(df=all_fp_df, sensor='GCAMP', region='LHA', event='cue',
-             alpha=0.25, color='lime', linewidth=0.5, sub_axes=ax3)
+pv.fp_plot_line(df=all_fp_df, sensor='GCAMP', region='LHA', event='cue',
+                alpha=0.25, color='lime', linewidth=0.5, sub_axes=ax3)
 sns.despine(top=True, right=True, ax=ax3)
 ax3.set_xlim(left=-5, right=15)  # x axis range
 # axs.set_ylim(bottom=-0.5, top=2.5)  # y axis range
@@ -304,8 +265,8 @@ ax3.set_box_aspect(1)
 
 ax4 = fig.add_subplot(gs[1, 1])
 
-fp_plot_line(df=all_fp_df, sensor='RDA', region='LHA', event='cue',
-             alpha=0.25, color='red', linewidth=0.5, sub_axes=ax4)
+pv.fp_plot_line(df=all_fp_df, sensor='RDA', region='LHA', event='cue',
+                alpha=0.25, color='red', linewidth=0.5, sub_axes=ax4)
 sns.despine(top=True, right=True, ax=ax4)
 ax4.set_xlim(left=-5, right=15)  # x axis range
 # axs.set_ylim(bottom=-0.5, top=2.5)  # y axis range
@@ -316,8 +277,8 @@ ax4.set_box_aspect(1)
 
 
 ax5 = fig.add_subplot(gs[2, 0])
-behavior_plot_line(group_behavior_tidy, recording='lick',
-                   sub_axes=ax5, alpha=0.5, color='black', linewidth=0.5)
+pv.behavior_plot_line(group_behavior_tidy, recording='lick',
+                      sub_axes=ax5, alpha=0.5, color='black', linewidth=0.5)
 sns.despine(top=True, right=True, ax=ax5)
 ax5.set_xlim(left=-5, right=15)
 # ax5.set_ylim(bottom=-0.5, top=1)
@@ -326,8 +287,8 @@ ax5.set_ylabel('Lick frequency', fontsize=8)  # x axis range
 ax5.set_box_aspect(1)
 
 ax6 = fig.add_subplot(gs[2, 1])
-behavior_plot_line(group_behavior_tidy, recording='encoder',
-                   sub_axes=ax6, alpha=0.5, color='black', linewidth=0.5)
+pv.behavior_plot_line(group_behavior_tidy, recording='encoder',
+                      sub_axes=ax6, alpha=0.5, color='black', linewidth=0.5)
 sns.despine(top=True, right=True, ax=ax6)
 ax6.set_xlim(left=-5, right=15)
 # ax6.set_ylim(bottom=-0.5, top=1)
@@ -341,7 +302,18 @@ ax6.set_box_aspect(1)
 
 # fig.suptitle("GridSpec")
 # format_axes(fig)
+fig.align_ylabels()
 
+plt.tight_layout()
+plt.rcParams["svg.fonttype"] = "none"  # save text as text in svg
+plt.savefig(f"{tidy_analysis}\\{day}_analysis.tiff",
+            dpi=300,
+            transparent=True,
+            )
+plt.savefig(f"{tidy_analysis}\\{day}_analysis.svg",
+            dpi=300,
+            transparent=True,
+            )
 plt.show()
 
 # TODO finish commenting and formatting figures here
