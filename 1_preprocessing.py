@@ -420,6 +420,5 @@ ax6.set_box_aspect(1)
 
 plt.show()
 
-# TODO finish commenting and formatting figures here
 
 # %%
