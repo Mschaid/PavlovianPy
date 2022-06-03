@@ -54,7 +54,7 @@ def align_events(df, event, event_align):
 def calc_frequency(filepath):
     """ calculate frequency of events around specifc EPOCH"""
     # time is in seconds
-    df = pd.read_csv(filepath)  # read csv
+    df = pd.read_feather(filepath)  # read csv
     arr = df[(df > -10) & (df < 20)].to_numpy()  #
     arr = arr[np.logical_not(np.isnan(arr))]
     freq = np.histogram(arr, bins=155)[0] / len(df.columns)
@@ -151,17 +151,20 @@ def collect_AUC_data(path, sensor_regex, region_regex, event_regex):
     return AUC_clean
 
 
-def drop_mice(df):  # filteres dataframe prior to group and aggreation
-
-    filtered_df = df[(df.mouse != '512581') &
-                     (df.mouse != '514957') &
-                     #  (df.mouse != '514958') &
-                     (df.mouse != 'mean')
-                     ]
-    return filtered_df
+"""
+GROUP AGGREGATION FUNCTIONS
+"""
 
 
-"""PLOTTING FUNCTIONS"""
+def compile_data(file_list):
+    dataframes = [pd.read_feather(f) for f in file_list]
+    compiled_df = pd.concat(dataframes)
+    return compiled_df
+
+
+"""
+PLOTTING FUNCTIONS
+"""
 
 
 def fp_plot_line(df, sensor=None, region=None, event=None, sub_axes=None, alpha=None, color=None, linewidth=None):
@@ -182,7 +185,7 @@ def fp_plot_line(df, sensor=None, region=None, event=None, sub_axes=None, alpha=
                           y2=(data['z-score_mean'] - data['z-score_sem']), color=color, alpha=alpha, linewidth=0)
 
 
-def behavior_plot_line(df, recording=None, sub_axes=None, alpha=None, color=None, linewidth=None):
+def behavior_plot_line(df, recording=None, sub_axes=None, alpha=None, color=None, linewidth=None, hue=None):
 
     data = df[(df.recording == recording)]
 
@@ -191,6 +194,7 @@ def behavior_plot_line(df, recording=None, sub_axes=None, alpha=None, color=None
                  y='avg_frequency_mean',
                  color=color,
                  linewidth=linewidth,
+                 hue=hue
                  ax=sub_axes
                  )
     sub_axes.fill_between(data=data, x=data['time_sec'], y1=(data['avg_frequency_mean'] + data['avg_frequency_sem']),

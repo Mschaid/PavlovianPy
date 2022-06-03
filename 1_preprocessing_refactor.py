@@ -2,6 +2,7 @@
 import h5py
 import matplotlib.pyplot as plt
 import pandas as pd
+import feather
 import os
 import glob
 import re
@@ -13,7 +14,7 @@ import seaborn as sns
 import pavlovian_functions as pv
 
 # path where guppy output files for day  are
-path_to_files = r"R:\Mike\LHA_dopamine\LH_NAC_Headfix_FP\Photometry\Pav Training\2_color_pav\Sucrose_to_sucralose\Training\Day_6"
+path_to_files = r"R:\Mike\LHA_dopamine\LH_NAC_Headfix_FP\Photometry\Pav Training\2_color_pav\Sucrose_to_sucralose\Training\Day_9"
 
 day = re.search(r"Day_\d\d?", path_to_files)[0]
 
@@ -36,6 +37,7 @@ for f in new_folders:
 
 print('Directories created, extracting timestamps')
 #  search path_to_files for all directories, then find subdirs that contain 'output' - append paths to list mouse_dirs
+
 mouse_dirs = glob.glob(path_to_files + "\**\*output_*")
 event_ts = ["Cuet", "Rwrp", "Lick", "endr"]
 suffix = ".hdf5"
@@ -63,13 +65,14 @@ for mouse in mouse_dirs:
 
             mouse_id = os.path.basename(mouse).split("-")[0]
             df_raw_ts = df_raw_ts.rename(columns={
-                                         'Lick': 'lick', 'Cuet': 'cue', 'endr': 'encoder', 'Rwrp': 'reward'})
-            df_raw_ts.to_csv(
-                f"{extracted_ts_path}\\{mouse_id}_{day}_timestamps.csv", index=False)
-            df_align_licks_to_cue.to_csv(f"{aligned_ts_path}\\{mouse_id}_{day}_cue_aligned_lick_timestamps.csv",
-                                         index=False)
-            df_align_encoder_to_cue.to_csv(f"{aligned_ts_path}\\{mouse_id}_{day}_cue_aligned_encoder_timestamps.csv",
-                                           index=False)
+                'Lick': 'lick', 'Cuet': 'cue', 'endr': 'encoder', 'Rwrp': 'reward'})
+
+            df_raw_ts.to_feather(
+                f"{extracted_ts_path}\\{mouse_id}_{day}_timestamps.feather")
+            df_align_licks_to_cue.add_prefix('trial_').to_feather(
+                f"{aligned_ts_path}\\{mouse_id}_{day}_cue_aligned_lick_timestamps.feather")
+            df_align_encoder_to_cue.add_prefix('trial_').to_feather(
+                f"{aligned_ts_path}\\{mouse_id}_{day}_cue_aligned_encoder_timestamps.feather")
 
 print("timestamps extracted analyzed and saved")
 
@@ -86,27 +89,27 @@ for f in aligned_ts_files:
         pass
 
 
-# create event name pair with dataframe
+# svreate event name pair with dataframe
 licks_analyzed = pv.create_behavior_dataframe('lick', lick_files)
 encoder_analyzed = pv.create_behavior_dataframe('encoder', encoder_files)
 
-# combine in list to loop and save seperately as csvs
+# combine in list to loop and save seperately as vvs
 all_analysis = [licks_analyzed, encoder_analyzed]
 for i in all_analysis:
-    i[1].to_csv(f"{analyzed_behavior_path}\\{day}_group_{i[0]}_analysis.csv",
-                index=False)
+    i[1].to_feather(
+        f"{analyzed_behavior_path}\\{day}_group_{i[0]}_analysis.feather")
 
 # create list of dataframes, concatenate into master file and save
 all_analysis_df_ony = [licks_analyzed[1], encoder_analyzed[1]]
 group_behavior_tidy = pd.concat(all_analysis_df_ony)
 
-# save dataframe as h5 and use event name in filename
-group_behavior_path = f'{tidy_analysis}\\{day}_tidy_behavior.h5'
-group_behavior_tidy.to_hdf(group_behavior_path, key='behavior')
+# save dataframe as feather and use event name in filename
+group_behavior_path = f'{tidy_analysis}\\{day}_tidy_behavior.feather'
+group_behavior_tidy.reset_index(drop=True).to_feather(group_behavior_path)
 
 print('behavior analyzed')
 """
-this section cleans photometry data and formats it into tidy data, saves as h5 or csv 
+this section cleans photometry data and formats it into tidy data, saves as feather
 
 """
 group_path = f'{path_to_files}\\average'  # get path to guppy group analysis 'average'
@@ -120,15 +123,15 @@ all_fp_filepaths = [f for f in all_output_files if
                     re.match(fp_regex, os.path.basename(f))]
 
 
-# applys clean function to all fp data, then concatenates and saves as h5 file
+# applys clean function to all fp data, then concatenates and saves as feather file
 df_to_concat = [pv.collect_fp_data(
     f, sensor_regex='GCAMP|RDA', region_regex='NAC|LHA', event_regex='cue|reward') for f in all_fp_filepaths]
 df_to_concat[0]
 
 
 group_fp = pd.concat(df_to_concat)
-group_fp_path = f'{tidy_analysis}\\{day}_tidy_photometry.h5'
-group_fp.to_hdf(group_fp_path, key='photometry')
+group_fp_path = f'{tidy_analysis}\\{day}_tidy_photometry.feather'
+group_fp.reset_index(drop=True).to_feather(group_fp_path)
 print('fp data cleaned grouped and saved')
 
 
@@ -141,8 +144,8 @@ all_peak_AUC_filepaths = [f for f in all_output_files if
 auc_df_to_concat = [pv.collect_AUC_data(
     f, sensor_regex='GCAMP|RDA', region_regex='NAC|LHA', event_regex='cue|reward') for f in all_peak_AUC_filepaths]
 group_AUC_df = pd.concat(auc_df_to_concat)
-group_AUC_path = f'{tidy_analysis}\\{day}_tidy_AUC_photometry.h5'
-group_AUC_df.to_hdf(group_AUC_path, key='peak_AUC')
+group_AUC_path = f'{tidy_analysis}\\{day}_tidy_AUC_photometry.feather'
+group_AUC_df.reset_index(drop=True).to_feather(group_AUC_path)
 print('AUC data cleaned grouped and saved')
 
 
@@ -155,39 +158,27 @@ def agg_and_clean_fp(df):
 
     df = (
         df
-        .reset_index()
-        .drop(['index'], axis=1)
+        .reset_index(drop=True)
         .groupby(by=group_by)
         .agg(agg_dict)
         .pipe(pv.flatten_df))
     return df
 
-# TODO re write to pass in list
-
-
-def drop_mice(df):  # filteres dataframe prior to group and aggreation
-
-    filtered_df = df[(df.mouse != '512581') &
-                     (df.mouse != '514957') &
-                     #  (df.mouse != '514958') &
-                     (df.mouse != 'mean')
-                     ]
-    return filtered_df
-
 
 """
-Final photometry dataframe for plotting 
+Final photometry dataframe for plotting
 """
 all_fp_df = (group_fp.pipe(agg_and_clean_fp))  # all mice
 
-nac_fp_df = (group_fp  # dropped missing nac probe mice
-             .pipe(drop_mice)
+mice_to_drop = ['512581', '514957', '514958', 'mean']
+
+nac_fp_df = (group_fp[~group_fp.mouse.isin(mice_to_drop)]  # dropped missing nac probe mice
+             #  .pipe(drop_mice)
              .pipe(agg_and_clean_fp)
              )
 
-
 """
-group and aggregate behavior 
+group and aggregate behavior
 """
 
 behavior_group_by = ['time_sec', 'recording']
@@ -196,8 +187,7 @@ behavior_agg_dict = {'avg_frequency': ['mean', 'std', 'sem']}
 #
 group_behavior_tidy = (
     group_behavior_tidy
-    .reset_index()
-    .drop(['index'], axis=1)
+    .reset_index(drop=True)
     .groupby(by=behavior_group_by)
     .agg(behavior_agg_dict)
     .pipe(pv.flatten_df)
@@ -205,7 +195,7 @@ group_behavior_tidy = (
 
 print('preprocessing complete, ready to plot')
 #
-""" 
+"""
 PLOT
 """
 fig = plt.figure(figsize=(10, 10))
@@ -315,8 +305,4 @@ plt.savefig(f"{tidy_analysis}\\{day}_analysis.svg",
             transparent=True,
             )
 plt.show()
-
-# TODO finish commenting and formatting figures here
-
-
 # %%
