@@ -1,9 +1,10 @@
+# %%
 import os
 import glob
 import shutil
 import pavlovian_functions as pv
 
-path_to_files = r"C:\Users\mds8301\Desktop\FP_transfer\Day_8"
+path_to_files = r"C:\Users\mds8301\Desktop\FP_transfer\Day_9"
 
 master_stores_list = r"R:\Mike\LHA_dopamine\LH_NAC_Headfix_FP\Photometry\Pav Training\2_color_pav\master_stores_list\storesList.csv"
 
@@ -25,3 +26,5 @@ for f in files_to_remove:
         print("file removed")
     else:
         print("file not found")
+
+# %%

@@ -194,7 +194,7 @@ def behavior_plot_line(df, recording=None, sub_axes=None, alpha=None, color=None
                  y='avg_frequency_mean',
                  color=color,
                  linewidth=linewidth,
-                 hue=hue
+                 hue=hue,
                  ax=sub_axes
                  )
     sub_axes.fill_between(data=data, x=data['time_sec'], y1=(data['avg_frequency_mean'] + data['avg_frequency_sem']),
