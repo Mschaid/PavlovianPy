@@ -126,7 +126,7 @@ def plot_day(df, colors, ax):
                  y='z-score_mean',
                  palette=colors,
                  hue='day',
-                 linewidth=1,
+                 linewidth=0.5,
                  ax=ax).legend(bbox_to_anchor=(1.02, 1), loc='upper left',
                                fontsize=8, borderaxespad=0, frameon=False, title='Day', title_fontsize=8)
 
@@ -165,15 +165,18 @@ def format_behavior(ax, y_label):
     sns.despine(top=True, right=True, ax=ax)
 
 
+# %%
 fig = plt.figure(figsize=(8, 8))
 days = ['3', '6', '9']
-gcamp_colors = ['#99ffca', '#4dffa3', '#00e66f']
-rda_colors = ['#ff9999', '#ff4d4d', '#e60000']
+gcamp_colors = ['#c8ffc3', '#73ff68', '#17e006']
+rda_colors = ['#ffafaf', '#ff6f6f', '#f11717']
 behavior_colors = ['#BEBEBE', '#707070', '#000000']
 
 gs = GridSpec(3, 4, figure=fig)
 
-
+"""
+GCAMP
+"""
 ax1 = fig.add_subplot(gs[0, 0])
 plot_day(lha_gcamp, gcamp_colors, ax1)
 ax1.get_legend().remove()
@@ -189,6 +192,9 @@ for day, color in zip(days, gcamp_colors):
 format_fp(ax2)
 ax2.set_title('NAc DA terminal activty', fontsize=8)
 
+"""
+rDlight
+"""
 ax3 = fig.add_subplot(gs[1, 0])
 plot_day(lha_rda, rda_colors, ax3)
 ax3.get_legend().remove()
@@ -210,7 +216,7 @@ behavior
 ax5 = fig.add_subplot(gs[2, 0])
 licks = behavior_group_agg.query("recording=='lick' & day==@days")
 
-sns.lineplot(data=licks, x='time_sec', y='avg_frequency_mean',
+sns.lineplot(data=licks, x='time_sec', y='avg_frequency_mean', linewidth=0.5,
              hue='day', palette=behavior_colors)
 ax5.get_legend().remove()
 for day, color in zip(days, behavior_colors):
@@ -222,7 +228,7 @@ ax5.set_title('Lick Frequency', fontsize=8)
 ax6 = fig.add_subplot(gs[2, 1])
 encoder = behavior_group_agg.query("recording=='encoder' & day==@days")
 
-sns.lineplot(data=encoder, x='time_sec', y='avg_frequency_mean',
+sns.lineplot(data=encoder, x='time_sec', y='avg_frequency_mean', linewidth=0.5,
              hue='day', palette=behavior_colors).legend(bbox_to_anchor=(1.02, 1), loc='upper left',
                                                         fontsize=8, borderaxespad=0, frameon=False, title='Day', title_fontsize=8)
 for day, color in zip(days, behavior_colors):
@@ -236,8 +242,13 @@ for ax in axes:
 
 
 gs.update(left=0.1, right=0.9, top=0.965, bottom=0.03, wspace=0.8, hspace=-0.4)
-plt.tight_layout()
 
+# draw box for cue
+
+for ax in axes:
+    pv.draw_cue_box(ax, alpha=0.25, color='lightgrey')
+
+# label plots with letters
 for n, ax in enumerate(axes):
     ax.text(-0.5, 1.2, string.ascii_uppercase[n], transform=ax.transAxes,
             size=14, weight='bold')

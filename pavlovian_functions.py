@@ -201,9 +201,11 @@ def behavior_plot_line(df, recording=None, sub_axes=None, alpha=None, color=None
                           y2=(data['avg_frequency_mean'] - data['avg_frequency_sem']), color=color, alpha=alpha, linewidth=0)
 
 
-def draw_cue_box(ax):
+def draw_cue_box(ax, color, alpha):
     #  draw box on plot for cue
+    y_lower = ax.get_ylim()[0]
+    y_ags_sum = sum(np.abs(ax.get_ylim()))
     rect = patches.Rectangle(
-        (0, -2), width=5, height=10, alpha=0.25, facecolor="lightgrey")
+        (0, y_lower), width=5, height=y_ags_sum, alpha=alpha, facecolor=color)
     ax.add_patch(rect)
     return rect
